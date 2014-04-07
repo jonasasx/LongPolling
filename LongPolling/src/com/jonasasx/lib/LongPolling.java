@@ -2,8 +2,10 @@ package com.jonasasx.lib;
 
 import java.io.UnsupportedEncodingException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 
@@ -39,6 +41,7 @@ public class LongPolling {
 	private int _dateLast = 5;
 	private int _timeOut = 31000;
 	private Boolean listening = false;
+	private List<Integer> hashes = new ArrayList<Integer>();
 
 	/**
 	 * @param context
@@ -68,6 +71,10 @@ public class LongPolling {
 			public void onSuccess(int statusCode, Header[] headers, String responseString) {
 				String[] responses = responseString.replaceAll("\\}\\{", "}\r\n{").split("\r\n");
 				for (String subResponse : responses) {
+					int hash = subResponse.hashCode();
+					if (hashes.contains(hash))
+						return;
+					hashes.add(hash);
 					Object parsed;
 					try {
 						parsed = parseResponse(subResponse.getBytes(getCharset()));
