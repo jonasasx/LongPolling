@@ -73,7 +73,7 @@ public class LongPolling {
 				for (String subResponse : responses) {
 					int hash = subResponse.hashCode();
 					if (hashes.contains(hash))
-						return;
+						continue;
 					hashes.add(hash);
 					Object parsed;
 					try {
