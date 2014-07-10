@@ -18,41 +18,64 @@ import org.json.JSONTokener;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.util.Log;
 
 import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.JsonHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
 import com.loopj.android.http.TextHttpResponseHandler;
 
+// TODO: Auto-generated Javadoc
 /**
+ * The Class LongPolling.
+ *
  * @author jonasasx@gmail.com
- * 
  */
 public class LongPolling {
-	private final static String LOG_TAG = "LongPolling";
-	private Context context;
-	private String _channel;
-	private TextHttpResponseHandler _responseHandler;
-	private AsyncHttpClient httpClient;
-	private String _url;
-	private String date = null;
-	private String etag = "0";
-	private int _dateLast = 5;
-	private int _timeOut = 31000;
-	private Boolean listening = false;
-	private List<Integer> hashes = new ArrayList<Integer>();
+
+	/** The context. */
+	private Context					context;
+
+	/** The _channel. */
+	private String					_channel;
+
+	/** The _response handler. */
+	private TextHttpResponseHandler	_responseHandler;
+
+	/** The http client. */
+	private AsyncHttpClient			httpClient;
+
+	/** The _url. */
+	private String					_url;
+
+	/** The date. */
+	private String					date		= null;
+
+	/** The etag. */
+	private String					etag		= "0";
+
+	/** The _date last. */
+	private int						_dateLast	= 5;
+
+	/** The _time out. */
+	private int						_timeOut	= 31000;
+
+	/** The listening. */
+	private boolean					mListening	= false;
+
+	/** The hashes. */
+	private List<Integer>			hashes		= new ArrayList<Integer>();
+
+	/** The m on reconnect listener. */
+	private OnReconnectListener		mOnReconnectListener;
 
 	/**
-	 * @param context
-	 * @param url
-	 *            example: http://example.com/lp/
-	 * @param channel
-	 *            may be generated with LongPolling.channel
-	 * @param responseHandler
-	 *            json response handler
+	 * Instantiates a new long polling.
+	 *
+	 * @param context the context
+	 * @param url example: http://example.com/lp/
+	 * @param channel may be generated with LongPolling.channel
+	 * @param responseHandler json response handler
 	 */
-	public LongPolling(Context context, String url, String channel, final JsonHttpResponseHandler responseHandler) {
+	public LongPolling(Context context, String url, String channel, final OnMessageListener responseHandler) {
 		this.context = context;
 		httpClient = new AsyncHttpClient();
 		httpClient.setTimeout(_timeOut);
@@ -62,7 +85,6 @@ public class LongPolling {
 
 			@Override
 			public void onFailure(int statusCode, Header[] headers, String responseString, Throwable throwable) {
-				responseHandler.onFailure(statusCode, headers, responseString, throwable);
 				parseHeaders(headers);
 				get();
 			}
@@ -79,10 +101,9 @@ public class LongPolling {
 					try {
 						parsed = parseResponse(subResponse.getBytes(getCharset()));
 						if (parsed instanceof JSONObject) {
-							responseHandler.onSuccess(statusCode, headers, (JSONObject) parsed);
-							Log.v(LOG_TAG, ((JSONObject) parsed).toString());
+							responseHandler.onMessage((JSONObject) parsed);
 						} else if (parsed instanceof JSONArray) {
-							responseHandler.onSuccess(statusCode, headers, (JSONArray) parsed);
+							responseHandler.onMessage((JSONArray) parsed);
 						}
 					} catch (UnsupportedEncodingException e) {
 						e.printStackTrace();
@@ -90,7 +111,7 @@ public class LongPolling {
 						e.printStackTrace();
 					}
 				}
-				responseHandler.onSuccess(statusCode, headers, responseString);
+				responseHandler.onMessage(responseString);
 				parseHeaders(headers);
 				get();
 			}
@@ -114,22 +135,86 @@ public class LongPolling {
 		};
 	}
 
+	/**
+	 * The listener interface for receiving onMessage events. The class that is interested in processing a onMessage event implements this interface, and the object created with that class is
+	 * registered with a component using the component's <code>addOnMessageListener<code> method. When
+	 * the onMessage event occurs, that object's appropriate
+	 * method is invoked.
+	 *
+	 * @see OnMessageEvent
+	 */
+	public static abstract class OnMessageListener {
+
+		/**
+		 * On message.
+		 *
+		 * @param response the response
+		 */
+		public void onMessage(JSONObject response) {
+		};
+
+		/**
+		 * On message.
+		 *
+		 * @param response the response
+		 */
+		public void onMessage(JSONArray response) {
+		};
+
+		/**
+		 * On message.
+		 *
+		 * @param response the response
+		 */
+		public void onMessage(String response) {
+		};
+	}
+
+	/**
+	 * The listener interface for receiving onReconnect events. The class that is interested in processing a onReconnect event implements this interface, and the object created with that class is
+	 * registered with a component using the component's <code>addOnReconnectListener<code> method. When
+	 * the onReconnect event occurs, that object's appropriate
+	 * method is invoked.
+	 *
+	 * @see OnReconnectEvent
+	 */
+	public static interface OnReconnectListener {
+
+		/**
+		 * On reconnect.
+		 *
+		 * @return true, if successful
+		 */
+		public boolean onReconnect();
+	}
+
+	/**
+	 * Connect.
+	 */
 	public void connect() {
-		if (listening)
+		if (mListening)
 			return;
 		if (date == null)
 			date = makeDate();
-		listening = true;
+		mListening = true;
 		get();
 	}
 
+	/**
+	 * Disconnect.
+	 */
 	public void disconnect() {
-		if (!listening)
+		if (!mListening)
 			return;
-		listening = false;
+		mListening = false;
 		httpClient.cancelRequests(context, true);
 	}
 
+	/**
+	 * Parses the headers.
+	 *
+	 * @param headers the headers
+	 */
 	private void parseHeaders(Header[] headers) {
 		if (headers == null)
 			return;
@@ -143,6 +228,11 @@ public class LongPolling {
 		}
 	}
 
+	/**
+	 * Make date.
+	 *
+	 * @return the string
+	 */
 	@SuppressLint("SimpleDateFormat")
 	private String makeDate() {
 		Locale oldLocale = Locale.getDefault();
@@ -158,8 +248,13 @@ public class LongPolling {
 		return s;
 	}
 
+	/**
+	 * Gets the.
+	 */
 	private void get() {
-		if (!listening)
+		if (!mListening)
+			return;
+		if (mOnReconnectListener != null && !mOnReconnectListener.onReconnect())
 			return;
 		Header[] headers = new Header[] { new BasicHeader("If-Modified-Since", date), new BasicHeader("If-None-Match", etag), };
 		RequestParams params = null;
@@ -171,12 +266,11 @@ public class LongPolling {
 	}
 
 	/**
-	 * @param uid
-	 *            User id
-	 * @param service
-	 *            Service name
-	 * @param sid
-	 *            Service id
+	 * Channel.
+	 *
+	 * @param uid User id
+	 * @param service Service name
+	 * @param sid Service id
 	 * @return Channel string
 	 */
 	public static String channel(String uid, String service, String sid) {
@@ -188,12 +282,11 @@ public class LongPolling {
 	}
 
 	/**
-	 * @param uid
-	 *            User id
-	 * @param service
-	 *            Service name
-	 * @param sid
-	 *            Service id
+	 * Channel.
+	 *
+	 * @param uid User id
+	 * @param service Service name
+	 * @param sid Service id
 	 * @return Channel string
 	 */
 	public static String channel(String uid, String service, int sid) {
@@ -203,16 +296,42 @@ public class LongPolling {
 	}
 
 	/**
-	 * @param uid
-	 *            User id
-	 * @param service
-	 *            Service name
-	 * @param sid
-	 *            Service id
+	 * Channel.
+	 *
+	 * @param uid User id
+	 * @param service Service name
+	 * @param sid Service id
 	 * @return Channel string
 	 */
 	public static String channel(int uid, String service, int sid) {
 		return Integer.toString(uid) + "_" + service + "_" + Integer.toString(sid);
+	}
+
+	/**
+	 * Sets the on reconnect listener.
+	 *
+	 * @param mOnReconnectListener the new on reconnect listener
+	 */
+	public void setOnReconnectListener(OnReconnectListener mOnReconnectListener) {
+		this.mOnReconnectListener = mOnReconnectListener;
+	}
+
+	/**
+	 * Checks if is listening.
+	 *
+	 * @return true, if is listening
+	 */
+	public boolean isListening() {
+		return mListening;
+	}
+
+	/**
+	 * Sets the listening.
+	 *
+	 * @param mListening the new listening
+	 */
+	public void setListening(boolean mListening) {
+		this.mListening = mListening;
 	}
 
 }
