@@ -80,6 +80,8 @@ public class LongPolling {
 		httpClient = new AsyncHttpClient();
 		httpClient.setTimeout(_timeOut);
 		_channel = channel;
+		if (_channel == null)
+			return;
 		_url = url + _channel;
 		_responseHandler = new TextHttpResponseHandler() {
 
@@ -190,6 +192,8 @@ public class LongPolling {
 	 * Connect.
 	 */
 	public void connect() {
+		if (_channel == null)
+			return;
 		if (mListening)
 			return;
 		if (date == null)
