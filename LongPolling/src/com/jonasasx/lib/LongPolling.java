@@ -18,6 +18,7 @@ import org.json.JSONTokener;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.util.Log;
 
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.RequestParams;
@@ -30,6 +31,8 @@ import com.loopj.android.http.TextHttpResponseHandler;
  * @author jonasasx@gmail.com
  */
 public class LongPolling {
+
+	private static final String		LOG_TAG		= "LongPolling";
 
 	/** The context. */
 	private Context					context;
@@ -199,6 +202,7 @@ public class LongPolling {
 		if (date == null)
 			date = makeDate();
 		mListening = true;
+		Log.v(LOG_TAG, "Long Polling connected on " + _channel);
 		get();
 	}
 
@@ -210,6 +214,7 @@ public class LongPolling {
 			return;
 		mListening = false;
 		httpClient.cancelRequests(context, true);
+		Log.v(LOG_TAG, "Long Polling disconnected on " + _channel);
 	}
 
 	/**
