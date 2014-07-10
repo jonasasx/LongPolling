@@ -106,9 +106,7 @@ public class LongPolling {
 							responseHandler.onMessage((JSONArray) parsed);
 						}
 					} catch (UnsupportedEncodingException e) {
-						e.printStackTrace();
 					} catch (JSONException e) {
-						e.printStackTrace();
 					}
 				}
 				responseHandler.onMessage(responseString);
@@ -249,7 +247,7 @@ public class LongPolling {
 	}
 
 	/**
-	 * Gets the.
+	 * Making the request.
 	 */
 	private void get() {
 		if (!mListening)
@@ -261,7 +259,6 @@ public class LongPolling {
 		try {
 			httpClient.get(context, _url, headers, params, _responseHandler);
 		} catch (Exception e) {
-			e.printStackTrace();
 		}
 	}
 
